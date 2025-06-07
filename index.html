@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梅林服务器 聊天室</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --dark-bg: #121f33;
+            --medium-bg: #1c2b44;
+            --light-bg: #253652;
+            --text-color: #e6f1ff;
+            --text-muted: #94a3b8;
+            --border-color: #2d3b52;
+            --web-message-bg: rgba(74, 111, 165, 0.15);
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--medium-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+        
+        .chat-header {
+            padding: 18px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chat-header h1 {
+            font-weight: 600;
+            font-size: 1.6rem;
+            margin: 0;
+            color: var(--text-color);
+        }
+        
+        .user-name-container {
+            padding: 18px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .user-name-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        
+        .user-name-container input {
+            width: 100%;
+            padding: 11px 14px;
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        
+        .user-name-container input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .required {
+            color: #e53e3e;
+        }
+        
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-message {
+            margin-bottom: 12px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            background-color: var(--light-bg);
+        }
+        
+        .web-message {
+            background-color: var(--web-message-bg);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .message-content {
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+        
+        .chat-form {
+            display: flex;
+            padding: 15px;
+            gap: 10px;
+            border-top: 1px solid var(--border-color);
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+        
+        .user-input-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        .user-input-container input {
+            width: 100%;
+            padding: 11px 14px;
+            padding-right: 40px;
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        
+        .user-input-container input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .send-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        
+        .btn-send {
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 7px;
+            padding: 0 20px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            min-width: 90px;
+        }
+        
+        .btn-send:hover {
+            background-color: #3a5f8a;
+        }
+        
+        .btn-send:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            .chat-header h1 {
+                font-size: 1.4rem;
+            }
+            
+            .chat-messages {
+                height: 350px;
+                padding: 12px;
+            }
+            
+            .chat-form {
+                padding: 12px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            body {
+                padding: 10px;
+            }
+            
+            .chat-header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .chat-form {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .btn-send {
+                width: 100%;
+                padding: 11px;
+            }
+            
+            .chat-messages {
+                height: 300px;
+            }
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1><i class="fas fa-comments"></i> 梅林服务器 聊天室</h1>
+        </div>
+        
+        <div class="user-name-container">
+            <label for="user-name">用户名 <span class="required">*</span></label>
+            <input type="text" id="user-name" class="form-control" placeholder="请输入您的用户名" required>
+        </div>
+        
+        <div id="chat-messages" class="chat-messages">
+            <!-- 消息将通过JavaScript动态添加 -->
+        </div>
+        
+        <div class="chat-form">
+            <div class="user-input-container">
+                <input type="text" id="message-input" class="form-control" placeholder="请输入消息...">
+                <span class="send-icon"><i class="fas fa-paper-plane"></i></span>
+            </div>
+            <button id="send-button" class="btn-send" disabled>
+                <i class="fas fa-paper-plane"></i> 发送
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userNameInput = document.getElementById('user-name');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        
+        // 存储当前显示的消息
+        let currentMessages = [];
+        // 标记用户是否在查看历史消息
+        let isViewingHistory = false;
+        
+        // 仅在设置用户名后启用发送按钮
+        userNameInput.addEventListener('input', function() {
+            sendButton.disabled = this.value.trim() === '';
+        });
+
+        // 从后端获取聊天消息
+        function fetchChatMessages() {
+            fetch('http://game.awacode.top:4431/get-chat')
+                .then(response => response.json())
+                .then(messages => {
+                    // 检查是否有新消息
+                    if (messages.length <= currentMessages.length) return;
+                    
+                    // 记录当前滚动状态
+                    const scrollPosition = chatMessages.scrollTop;
+                    const scrollHeight = chatMessages.scrollHeight;
+                    const isAtBottom = scrollPosition + chatMessages.clientHeight >= scrollHeight - 20;
+                    
+                    // 添加新消息
+                    for (let i = currentMessages.length; i < messages.length; i++) {
+                        const message = messages[i];
+                        const messageElement = document.createElement('div');
+                        messageElement.className = 'chat-message';
+                        
+                        // 检查是否为WEB消息
+                        if (message.includes('§9[WEB]')) {
+                            messageElement.className = 'chat-message web-message';
+                            // 移除§9颜色代码并添加[WEB]标签
+                            const cleanedMessage = message.replace('§9', '');
+                            messageElement.innerHTML = `
+                                <div class="message-content">
+                                    <span style="color: #6e9de4; font-weight: bold;">[WEB]</span> ${cleanedMessage}
+                                </div>
+                            `;
+                        } else {
+                            messageElement.textContent = message;
+                        }
+                        
+                        chatMessages.appendChild(messageElement);
+                    }
+                    
+                    // 更新当前消息
+                    currentMessages = messages;
+                    
+                    // 如果用户之前在看底部，或者消息很少，则滚动到底部
+                    if (isAtBottom || chatMessages.clientHeight >= chatMessages.scrollHeight - 20) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    } else {
+                        // 否则保持原有位置
+                        chatMessages.scrollTop = scrollPosition;
+                    }
+                })
+                .catch(error => console.error('获取聊天消息时出错:', error));
+        }
+
+        // 向后端和 Minecraft 服务器发送消息
+        function sendMessage() {
+            const userName = userNameInput.value;
+            const message = messageInput.value;
+            if (userName.trim() && message.trim()) {
+                fetch('http://game.awacode.top:4431/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_name: userName, message }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        messageInput.value = '';
+                        // 立即显示用户消息
+                        const messageElement = document.createElement('div');
+                        messageElement.className = 'chat-message';
+                        messageElement.textContent = `${userName}: ${message}`;
+                        chatMessages.appendChild(messageElement);
+                        currentMessages.push(`${userName}: ${message}`);
+                        
+                        // 滚动到底部
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    } else {
+                        alert('发送消息失败');
+                    }
+                })
+                .catch(error => console.error('发送消息时出错:', error));
+            }
+        }
+
+        // 初始化事件监听器
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        document.querySelector('.send-icon').addEventListener('click', sendMessage);
+        
+        // 监听消息框滚动事件
+        chatMessages.addEventListener('scroll', function() {
+            // 如果用户滚动到顶部附近，标记为正在查看历史记录
+            isViewingHistory = this.scrollTop < this.scrollHeight - this.clientHeight - 100;
+        });
+
+        // 每2秒获取一次聊天消息
+        setInterval(fetchChatMessages, 2000);
+        // 初始加载
+        fetchChatMessages();
+    </script>
+</body>
+</html>
