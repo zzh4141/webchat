@@ -268,7 +268,7 @@
 
         // 从后端获取聊天消息
         function fetchChatMessages() {
-            fetch('http://game.awacode.top:4431/get-chat')
+            fetch('https://wc.bioc.fun:1084/get-chat')
                 .then(response => response.json())
                 .then(messages => {
                     // 检查是否有新消息
@@ -321,7 +321,7 @@
             const userName = userNameInput.value;
             const message = messageInput.value;
             if (userName.trim() && message.trim()) {
-                fetch('http://game.awacode.top:4431/send-message', {
+                fetch('https://wc.bioc.fun:1084/send-message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
