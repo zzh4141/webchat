@@ -1,3 +1,5 @@
+[file name]: index.html
+[file content begin]
 <!DOCTYPE html>
 <html lang="zh-CN" class="light-theme">
 <head>
@@ -408,6 +410,76 @@
         }
 
         /* ======================
+           用户名设置模态框
+        ====================== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .modal-buttons button {
+            padding: 12px 30px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .modal-buttons button:hover {
+            opacity: 0.9;
+        }
+
+        /* ======================
            响应式设计
         ====================== */
         /* 手机设备 */
@@ -473,6 +545,14 @@
                 width: 40px;
                 height: 40px;
             }
+
+            .modal-content {
+                padding: 20px;
+            }
+
+            .modal-buttons button {
+                padding: 10px 20px;
+            }
         }
         
         /* 平板设备 */
@@ -521,6 +601,18 @@
     </style>
 </head>
 <body>
+    <!-- 用户名设置模态框 -->
+    <div id="username-modal" class="modal">
+        <div class="modal-content">
+            <h3>欢迎使用梅林聊天室</h3>
+            <p>请设置您的用户名以开始聊天</p>
+            <input type="text" id="modal-username" placeholder="输入用户名" autocomplete="off">
+            <div class="modal-buttons">
+                <button id="confirm-username">确认</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="chat-container">
         <!-- 聊天头部 -->
         <div class="chat-header">
@@ -590,11 +682,15 @@
         const scrollToBottomBtn = document.getElementById('scroll-to-bottom');
         const connectionStatus = document.getElementById('connection-status');
         const infoBtn = document.getElementById('info-btn');
+        const modal = document.getElementById('username-modal');
+        const modalUsername = document.getElementById('modal-username');
+        const confirmUsernameBtn = document.getElementById('confirm-username');
         
         // 状态变量
         let socket = null;
         let isConnected = false;
         let usernameSet = false;
+        let messageCache = new Set(); // 用于消息去重
         
         // ======================
         // 初始化WebSocket连接
@@ -628,18 +724,34 @@
             });
             
             // 接收消息事件
-            socket.on('message', (message) => {
-                addMessageToChat(message, false);
-                
-                // 显示滚动到底部的按钮
-                scrollToBottomBtn.classList.add('visible');
+            socket.on('message', (messageData) => {
+                // 使用ID进行去重
+                if (messageData.id && !messageCache.has(messageData.id)) {
+                    messageCache.add(messageData.id);
+                    
+                    // 限制缓存大小
+                    if (messageCache.size > 100) {
+                        const oldest = Array.from(messageCache)[0];
+                        messageCache.delete(oldest);
+                    }
+                    
+                    addMessageToChat(messageData, false);
+                    
+                    // 显示滚动到底部的按钮
+                    scrollToBottomBtn.classList.add('visible');
+                }
             });
             
             // 接收历史消息
             socket.on('history', (messages) => {
-                messages.forEach(msg => {
-                    addMessageToChat(msg, false, true);
-                });
+                // 历史消息从旧到新，我们逆序添加（最新的在底部）
+                for (let i = messages.length - 1; i >= 0; i--) {
+                    const message = messages[i];
+                    if (message.id && !messageCache.has(message.id)) {
+                        messageCache.add(message.id);
+                        addMessageToChat(message, false, true);
+                    }
+                }
             });
             
             // 连接状态事件
@@ -707,32 +819,35 @@
         // ======================
         // 添加消息到聊天框
         // ======================
-        function addMessageToChat(message, isUserMessage = false, isHistory = false) {
+        function addMessageToChat(messageData, isUserMessage = false, isHistory = false) {
             const messageElement = document.createElement('div');
             messageElement.className = 'chat-message';
             
-            // 获取当前时间
-            const now = new Date();
-            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            // 获取时间字符串
+            const timestamp = messageData.timestamp || Date.now();
+            const date = new Date(timestamp);
+            const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
             
-            if (message.startsWith('欢迎') || message.startsWith('请在上方')) {
+            // 根据消息内容设置样式
+            const content = messageData.content || '';
+            if (content.startsWith('欢迎') || content.startsWith('请在上方')) {
                 // 系统消息
                 messageElement.className += ' system';
-                messageElement.textContent = message;
+                messageElement.textContent = content;
             } 
-            else if (message.includes('加入了') || message.includes('离开了')) {
+            else if (content.includes('加入了') || content.includes('离开了')) {
                 // 用户加入/离开消息
                 messageElement.className += ' system';
                 messageElement.innerHTML = `
                     <div class="message-content">
-                        <i class="fas fa-user-circle"></i> ${message}
+                        <i class="fas fa-user-circle"></i> ${content}
                     </div>
                 `;
             }
-            else if (message.includes('[WEB]')) {
+            else if (content.includes('[WEB]')) {
                 // Web用户消息
                 messageElement.className += ' web';
-                const cleanedMessage = message.replace('[WEB]', '');
+                const cleanedMessage = content.replace('[WEB]', '');
                 messageElement.innerHTML = `
                     <div class="sender">[WEB] 用户</div>
                     <div class="message-content">${cleanedMessage}</div>
@@ -743,26 +858,26 @@
                 // 当前用户发送的消息
                 messageElement.className += ' web';
                 messageElement.innerHTML = `
-                    <div class="sender">${userNameInput.value}</div>
-                    <div class="message-content">${message}</div>
+                    <div class="sender">${messageData.sender || userNameInput.value}</div>
+                    <div class="message-content">${messageData.content}</div>
                     <div class="time">${timeString}</div>
                 `;
             }
-            else if (message.includes(':')) {
+            else if (content.includes(':')) {
                 // 普通消息（包含发送者）
-                const parts = message.split(':');
+                const parts = content.split(':');
                 const sender = parts[0];
-                const content = parts.slice(1).join(':').trim();
+                const msgContent = parts.slice(1).join(':').trim();
                 
                 messageElement.innerHTML = `
                     <div class="sender">${sender}</div>
-                    <div class="message-content">${content}</div>
+                    <div class="message-content">${msgContent}</div>
                     <div class="time">${timeString}</div>
                 `;
             }
             else {
                 // 其他消息
-                messageElement.textContent = message;
+                messageElement.textContent = content;
             }
             
             // 添加到聊天框（历史消息添加到顶部，新消息添加到底部）
@@ -772,19 +887,25 @@
                 chatMessages.appendChild(messageElement);
             }
             
-            // 显示滚动到底部的按钮
-            scrollToBottomBtn.classList.add('visible');
+            // 如果添加的是新消息，并且用户没有滚动到顶部，则显示滚动到底部的按钮
+            if (!isHistory) {
+                scrollToBottomBtn.classList.add('visible');
+            }
         }
         
         // ======================
         // 添加系统消息
         // ======================
         function addSystemMessage(message) {
-            const messageElement = document.createElement('div');
-            messageElement.className = 'chat-message system';
-            messageElement.textContent = message;
-            chatMessages.appendChild(messageElement);
-            scrollToBottomBtn.classList.add('visible');
+            const messageData = {
+                id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                content: message,
+                timestamp: Date.now()
+            };
+            if (!messageCache.has(messageData.id)) {
+                messageCache.add(messageData.id);
+                addMessageToChat(messageData);
+            }
         }
         
         // ======================
@@ -804,14 +925,27 @@
             
             if (userName && message) {
                 if (isConnected) {
+                    // 生成唯一消息ID
+                    const timestamp = Date.now();
+                    const messageId = `${timestamp}_${hashCode(message)}`;
+                    
+                    // 创建消息数据
+                    const messageData = {
+                        id: messageId,
+                        content: message,
+                        sender: userName,
+                        timestamp: timestamp
+                    };
+                    
+                    // 在本地显示用户消息
+                    addMessageToChat(messageData, true);
+                    
                     // 通过WebSocket发送消息
                     socket.emit('send_message', {
                         user_name: userName,
-                        message: message
+                        message: message,
+                        id: messageId
                     });
-                    
-                    // 在本地显示用户消息
-                    addMessageToChat(message, true);
                     
                     // 清空输入框
                     messageInput.value = '';
@@ -826,26 +960,27 @@
         }
         
         // ======================
+        // 简单的哈希函数
+        // ======================
+        function hashCode(str) {
+            let hash = 0;
+            if (str.length === 0) return hash;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = (hash << 5) - hash + char;
+                hash = hash & hash; // 转换为32位整数
+            }
+            return hash;
+        }
+        
+        // ======================
         // 事件监听器
         // ======================
         function initEventListeners() {
-            // 用户名输入
+            // 用户名输入（在模态框中设置）
             userNameInput.addEventListener('input', function() {
                 const valid = this.value.trim() !== '';
                 sendButton.disabled = !valid;
-                
-                // 如果用户名已设置且连接正常，发送加入通知
-                if (valid && !usernameSet && isConnected) {
-                    usernameSet = true;
-                    socket.emit('user_join', this.value.trim());
-                }
-            });
-            
-            // 用户名输入框回车键
-            userNameInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    messageInput.focus();
-                }
             });
             
             // 发送按钮
@@ -928,8 +1063,44 @@
             // 初始化WebSocket连接
             initWebSocket();
             
-            // 聚焦用户名输入框
-            userNameInput.focus();
+            // 隐藏原始用户名输入
+            document.querySelector('.user-name-container').style.display = 'none';
+            
+            // 显示模态框
+            modal.style.display = 'flex';
+            modalUsername.focus();
+            
+            // 模态框确认按钮
+            confirmUsernameBtn.addEventListener('click', () => {
+                const username = modalUsername.value.trim();
+                if (username) {
+                    // 设置用户名
+                    userNameInput.value = username;
+                    
+                    // 启用发送按钮
+                    sendButton.disabled = false;
+                    
+                    // 隐藏模态框
+                    modal.style.display = 'none';
+                    
+                    // 标记用户名已设置
+                    usernameSet = true;
+                    
+                    // 如果已连接，发送加入通知
+                    if (isConnected) {
+                        socket.emit('user_join', username);
+                    }
+                } else {
+                    alert('请输入有效的用户名');
+                }
+            });
+            
+            // 按回车确认用户名
+            modalUsername.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    confirmUsernameBtn.click();
+                }
+            });
         }
         
         // 页面加载完成后初始化
