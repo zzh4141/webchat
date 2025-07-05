@@ -1,439 +1,939 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="light-theme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>梅林创造服务器 网页聊天室</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <title>梅林服务器聊天室</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
     <style>
+        /* ======================
+           主题变量定义
+        ====================== */
+        :root {
+            /* 浅色主题变量 */
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --secondary-text: #666666;
+            --border-color: #e0e0e0;
+            --message-bg: #f5f5f5;
+            --web-message-bg: #e3f2fd;
+            --primary-color: #2196f3;
+            --header-bg: #f8f8f8;
+            --input-bg: #f8f8f8;
+            --shadow: 0 2px 10px rgba(0,0,0,0.05);
+            --status-offline: #e53935;
+            --status-online: #43a047;
+            --scroll-btn-bg: #2196f3;
+            --scroll-btn-hover: #1976d2;
+            --message-border: #e0e0e0;
+            --user-input-bg: #ffffff;
+        }
+
+        .dark-theme {
+            /* 深色主题变量 */
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --secondary-text: #a0a0a0;
+            --border-color: #333333;
+            --message-bg: #1e1e1e;
+            --web-message-bg: #0d47a1;
+            --primary-color: #64b5f6;
+            --header-bg: #1a1a1a;
+            --input-bg: #1a1a1a;
+            --shadow: 0 2px 10px rgba(0,0,0,0.2);
+            --status-offline: #f44336;
+            --status-online: #66bb6a;
+            --scroll-btn-bg: #64b5f6;
+            --scroll-btn-hover: #42a5f5;
+            --message-border: #333333;
+            --user-input-bg: #1e1e1e;
+        }
+
+        /* ======================
+           全局样式
+        ====================== */
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
-        
+
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
-            color: #fff;
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 20px;
-        }
-        
-        header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .connected {
-            background-color: #4CAF50;
-        }
-        
-        .disconnected {
-            background-color: #F44336;
-        }
-        
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-        
-        .chat-header {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            border-bottom: 1px solid #333;
-        }
-        
-        .chat-messages {
-            flex: 1;
             padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-height: 60vh;
-        }
-        
-        .message {
-            padding: 12px 15px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            animation: fadeIn 0.3s ease;
-            word-break: break-word;
             line-height: 1.5;
         }
-        
-        .message.mc {
-            border-left: 4px solid #4CAF50;
-        }
-        
-        .message.web {
-            border-left: 4px solid #2196F3;
-        }
-        
-        .message.system {
-            border-left: 4px solid #FF9800;
-            font-style: italic;
-            color: #FF9800;
-        }
-        
-        .message-username {
-            font-weight: bold;
-            margin-right: 8px;
-            color: #64B5F6;
-        }
-        
-        .input-area {
+
+        .chat-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 90vh;
             display: flex;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-top: 1px solid #333;
-            gap: 10px;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
         }
-        
-        input, button {
-            padding: 12px 15px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1rem;
-        }
-        
-        input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        
-        input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.15);
-        }
-        
-        button {
-            background: #2196F3;
-            color: white;
-            cursor: pointer;
-            transition: background 0.3s;
-            font-weight: bold;
-        }
-        
-        button:hover {
-            background: #1976D2;
-        }
-        
-        .controls {
+
+        /* ======================
+           头部样式
+        ====================== */
+        .chat-header {
+            padding: 18px 20px;
             display: flex;
             justify-content: space-between;
-            padding: 15px 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-top: 1px solid #333;
+            align-items: center;
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
         }
-        
-        .control-group {
+
+        .header-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title i {
+            color: var(--primary-color);
+            font-size: 1.4rem;
+        }
+
+        .header-controls {
             display: flex;
             gap: 15px;
             align-items: center;
         }
-        
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-        
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .slider {
-            position: absolute;
+
+        .control-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
             cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-        
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
+            font-size: 1.2rem;
+            padding: 8px;
             border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
         }
-        
-        input:checked + .slider {
-            background-color: #2196F3;
+
+        .control-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
         }
-        
-        input:checked + .slider:before {
-            transform: translateX(26px);
+
+        .dark-theme .control-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
         }
-        
+
+        /* ======================
+           用户名输入区
+        ====================== */
+        .user-name-container {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--header-bg);
+        }
+
+        .user-name-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+
+        .user-name-container input {
+            width: 100%;
+            padding: 14px 16px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .user-name-container input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+
+        /* ======================
+           状态指示器
+        ====================== */
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--status-offline);
+        }
+
+        .connected .status-dot {
+            background-color: var(--status-online);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* ======================
+           聊天消息区
+        ====================== */
+        .chat-messages-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chat-message {
+            padding: 14px 18px;
+            border-radius: 12px;
+            background-color: var(--message-bg);
+            max-width: 85%;
+            align-self: flex-start;
+            animation: fadeIn 0.3s ease-out;
+            border: 1px solid var(--message-border);
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .chat-message.system {
+            background-color: rgba(0, 0, 0, 0.05);
+            border: 1px dashed var(--border-color);
+            align-self: center;
+            max-width: 90%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+        }
+
+        .dark-theme .chat-message.system {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-message.web {
+            background-color: var(--web-message-bg);
+            align-self: flex-end;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+        }
+
+        .chat-message .sender {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--primary-color);
+        }
+
+        .chat-message .time {
+            position: absolute;
+            bottom: 6px;
+            right: 12px;
+            font-size: 0.75rem;
+            color: var(--secondary-text);
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
-        @media (max-width: 768px) {
-            .input-area {
-                flex-direction: column;
+
+        /* ======================
+           聊天输入区
+        ====================== */
+        .chat-form {
+            display: flex;
+            padding: 16px 20px;
+            gap: 12px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--header-bg);
+        }
+
+        .user-input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .user-input-container input {
+            width: 100%;
+            padding: 14px 50px 14px 16px;
+            background-color: var(--user-input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .user-input-container input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+
+        .send-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary-text);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .send-icon:hover {
+            color: var(--primary-color);
+        }
+
+        .btn-send {
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            padding: 0 24px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .btn-send:hover {
+            opacity: 0.9;
+        }
+
+        .btn-send:disabled {
+            background-color: var(--secondary-text);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* ======================
+           滚动到底部按钮
+        ====================== */
+        .scroll-to-bottom {
+            position: absolute;
+            bottom: 85px;
+            right: 25px;
+            background-color: var(--scroll-btn-bg);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .scroll-to-bottom:hover {
+            background-color: var(--scroll-btn-hover);
+            transform: translateY(0) scale(1.05);
+        }
+
+        .scroll-to-bottom.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ======================
+           滚动条样式
+        ====================== */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .dark-theme .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* ======================
+           响应式设计
+        ====================== */
+        /* 手机设备 */
+        @media (max-width: 767px) {
+            body {
+                padding: 10px;
             }
             
-            .controls {
-                flex-direction: column;
-                gap: 15px;
+            .chat-container {
+                height: 95vh;
+                max-width: 100%;
+            }
+            
+            .chat-header {
+                padding: 14px 16px;
+            }
+            
+            .header-title {
+                font-size: 1.1rem;
+            }
+            
+            .header-title i {
+                font-size: 1.2rem;
+            }
+            
+            .user-name-container {
+                padding: 14px 16px;
+            }
+            
+            .status-indicator {
+                padding: 10px 16px;
+            }
+            
+            .chat-messages {
+                padding: 16px;
+            }
+            
+            .chat-message {
+                max-width: 90%;
+                padding: 12px 16px;
+            }
+            
+            .chat-form {
+                padding: 12px 16px;
+            }
+            
+            .btn-send {
+                min-width: 80px;
+                padding: 0 16px;
+            }
+            
+            .btn-send span {
+                display: none;
+            }
+            
+            .btn-send i {
+                margin: 0;
+            }
+            
+            .scroll-to-bottom {
+                bottom: 75px;
+                right: 15px;
+                width: 40px;
+                height: 40px;
+            }
+        }
+        
+        /* 平板设备 */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .chat-container {
+                max-width: 95vw;
+            }
+            
+            .chat-header {
+                padding: 16px 18px;
+            }
+            
+            .user-name-container {
+                padding: 15px 18px;
+            }
+            
+            .chat-messages {
+                padding: 18px;
+            }
+            
+            .chat-form {
+                padding: 14px 18px;
+            }
+        }
+        
+        /* 横屏模式 */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .chat-container {
+                height: 98vh;
+            }
+            
+            .chat-header, .user-name-container {
+                padding: 10px 15px;
+            }
+            
+            .chat-messages {
+                padding: 10px 15px;
+                gap: 12px;
+            }
+            
+            .chat-message {
+                padding: 10px 14px;
+                font-size: 0.9rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Minecraft 网页聊天室</h1>
-            <p>状态: <span class="status-indicator disconnected" id="status-indicator"></span>
-                <span id="status-text">连接中...</span>
-            </p>
-        </header>
+    <div class="chat-container">
+        <!-- 聊天头部 -->
+        <div class="chat-header">
+            <div class="header-title">
+                <i class="fas fa-comments"></i>
+                <span>梅林服务器聊天室</span>
+            </div>
+            <div class="header-controls">
+                <button class="control-btn" id="theme-toggle" title="切换主题">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="control-btn" id="info-btn" title="关于聊天室">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </div>
         
-        <div class="chat-container">
-            <div class="chat-header">
-                <h2>聊天室</h2>
+        <!-- 用户名输入 -->
+        <div class="user-name-container">
+            <label for="user-name">用户名</label>
+            <input type="text" id="user-name" placeholder="请输入您的用户名" required>
+        </div>
+        
+        <!-- 状态指示器 -->
+        <div class="status-indicator">
+            <div class="connection-status" id="connection-status">
+                <div class="status-dot"></div>
+                <span>连接中...</span>
+            </div>
+        </div>
+        
+        <!-- 聊天消息容器 -->
+        <div class="chat-messages-container">
+            <div id="chat-messages" class="chat-messages">
+                <!-- 消息将通过WebSocket动态添加 -->
             </div>
             
-            <div class="chat-messages" id="chat-messages">
-                <!-- 消息将在这里显示 -->
+            <!-- 滚动到底部按钮 -->
+            <div class="scroll-to-bottom" id="scroll-to-bottom">
+                <i class="fas fa-arrow-down"></i>
             </div>
-            
-            <div class="input-area">
-                <input type="text" id="username" placeholder="你的名字" value="网页玩家">
-                <input type="text" id="message-input" placeholder="输入消息..." autocomplete="off">
-                <button id="send-btn">发送</button>
+        </div>
+        
+        <!-- 聊天输入区 -->
+        <div class="chat-form">
+            <div class="user-input-container">
+                <input type="text" id="message-input" placeholder="请输入消息..." autocomplete="off">
+                <span class="send-icon" id="send-icon"><i class="fas fa-paper-plane"></i></span>
             </div>
-            
-            <div class="controls">
-                <div class="control-group">
-                    <label for="auto-scroll">自动滚动</label>
-                    <label class="switch">
-                        <input type="checkbox" id="auto-scroll" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                
-                <div class="control-group">
-                    <button id="clear-btn">清空聊天</button>
-                </div>
-            </div>
+            <button id="send-button" class="btn-send" disabled>
+                <i class="fas fa-paper-plane"></i>
+                <span>发送</span>
+            </button>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // 获取DOM元素
-            const chatMessages = document.getElementById('chat-messages');
-            const messageInput = document.getElementById('message-input');
-            const sendBtn = document.getElementById('send-btn');
-            const usernameInput = document.getElementById('username');
-            const statusIndicator = document.getElementById('status-indicator');
-            const statusText = document.getElementById('status-text');
-            const autoScrollSwitch = document.getElementById('auto-scroll');
-            const clearBtn = document.getElementById('clear-btn');
+        // ======================
+        // 初始化变量
+        // ======================
+        const chatMessages = document.getElementById('chat-messages');
+        const userNameInput = document.getElementById('user-name');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const sendIcon = document.getElementById('send-icon');
+        const themeToggle = document.getElementById('theme-toggle');
+        const scrollToBottomBtn = document.getElementById('scroll-to-bottom');
+        const connectionStatus = document.getElementById('connection-status');
+        const infoBtn = document.getElementById('info-btn');
+        
+        // 状态变量
+        let socket = null;
+        let isConnected = false;
+        let usernameSet = false;
+        
+        // ======================
+        // 初始化WebSocket连接
+        // ======================
+        function initWebSocket() {
+            // 清理URL中的无效字符
+            const wsUrl = 'wss://wc.bioc.fun:1084'.replace(/\s/g, '');
             
-            // 初始化变量
-            let username = usernameInput.value || '网页玩家';
-            let isConnected = false;
-            
-            // 连接到Socket.IO服务器
-            const socket = io('http://localhost:4431', {
+            // 连接Socket.IO服务器
+            socket = io(wsUrl, {
+                path: '/socket.io',
                 reconnection: true,
-                reconnectionAttempts: Infinity,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                timeout: 20000
-            });
-            
-            // 连接状态处理
-            socket.on('connect', () => {
-                isConnected = true;
-                updateStatus('已连接', 'connected');
-                console.log('已连接到服务器');
-                
-                // 发送用户加入消息
-                socket.emit('user_join', username);
-            });
-            
-            socket.on('disconnect', () => {
-                isConnected = false;
-                updateStatus('已断开连接', 'disconnected');
-                console.log('与服务器断开连接');
-            });
-            
-            socket.on('connect_error', (error) => {
-                updateStatus('连接错误', 'disconnected');
-                console.error('连接错误:', error);
-            });
-            
-            // 接收状态消息
-            socket.on('status', (data) => {
-                if (data.connected) {
-                    updateStatus('已连接', 'connected');
-                } else {
-                    updateStatus('已断开连接', 'disconnected');
+                reconnectionAttempts: 5,
+                reconnectionDelay: 3000,
+                transports: ['websocket'],
+                query: {
+                    clientType: 'web'
                 }
             });
             
-            // 接收错误消息
-            socket.on('error', (data) => {
-                displayMessage(`错误: ${data.message}`, 'system');
+            // 连接成功事件
+            socket.on('connect', () => {
+                console.log('WebSocket连接成功');
+                isConnected = true;
+                updateConnectionStatus(true);
+                
+                // 如果用户名已设置，发送加入通知
+                if (usernameSet) {
+                    socket.emit('user_join', userNameInput.value.trim());
+                }
+            });
+            
+            // 接收消息事件
+            socket.on('message', (message) => {
+                addMessageToChat(message, false);
+                
+                // 显示滚动到底部的按钮
+                scrollToBottomBtn.classList.add('visible');
             });
             
             // 接收历史消息
             socket.on('history', (messages) => {
                 messages.forEach(msg => {
-                    displayMessage(msg, classifyMessage(msg));
+                    addMessageToChat(msg, false, true);
                 });
-                
-                // 滚动到底部
-                scrollToBottom();
             });
             
-            // 接收新消息
-            socket.on('message', (msg) => {
-                displayMessage(msg, classifyMessage(msg));
-                
-                // 如果自动滚动开启，滚动到底部
-                if (autoScrollSwitch.checked) {
-                    scrollToBottom();
+            // 连接状态事件
+            socket.on('status', (data) => {
+                if (data.connected) {
+                    updateConnectionStatus(true);
+                } else {
+                    updateConnectionStatus(false);
                 }
             });
             
-            // 发送消息
-            sendBtn.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keypress', (e) => {
+            // 错误事件
+            socket.on('error', (error) => {
+                console.error('服务器错误:', error.message);
+                addSystemMessage(`错误: ${error.message}`);
+            });
+            
+            // 断开连接事件
+            socket.on('disconnect', (reason) => {
+                console.log('连接断开:', reason);
+                isConnected = false;
+                updateConnectionStatus(false);
+                
+                if (reason === 'io server disconnect') {
+                    // 服务器主动断开，尝试重新连接
+                    socket.connect();
+                }
+            });
+            
+            // 连接错误事件
+            socket.on('connect_error', (error) => {
+                console.error('连接错误:', error.message);
+                isConnected = false;
+                updateConnectionStatus(false);
+                addSystemMessage('连接服务器失败，正在尝试重新连接...');
+            });
+            
+            // 重新连接事件
+            socket.on('reconnect', (attempt) => {
+                console.log(`重新连接成功 (第 ${attempt} 次尝试)`);
+                isConnected = true;
+                updateConnectionStatus(true);
+                addSystemMessage('连接已恢复');
+                
+                // 重新发送用户名
+                if (userNameInput.value.trim()) {
+                    socket.emit('user_join', userNameInput.value.trim());
+                }
+            });
+        }
+        
+        // ======================
+        // 更新连接状态显示
+        // ======================
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.classList.add('connected');
+                connectionStatus.querySelector('span').textContent = '已连接';
+            } else {
+                connectionStatus.classList.remove('connected');
+                connectionStatus.querySelector('span').textContent = '连接断开，正在重连...';
+            }
+        }
+        
+        // ======================
+        // 添加消息到聊天框
+        // ======================
+        function addMessageToChat(message, isUserMessage = false, isHistory = false) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'chat-message';
+            
+            // 获取当前时间
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            if (message.startsWith('欢迎') || message.startsWith('请在上方')) {
+                // 系统消息
+                messageElement.className += ' system';
+                messageElement.textContent = message;
+            } 
+            else if (message.includes('加入了') || message.includes('离开了')) {
+                // 用户加入/离开消息
+                messageElement.className += ' system';
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        <i class="fas fa-user-circle"></i> ${message}
+                    </div>
+                `;
+            }
+            else if (message.includes('[WEB]')) {
+                // Web用户消息
+                messageElement.className += ' web';
+                const cleanedMessage = message.replace('[WEB]', '');
+                messageElement.innerHTML = `
+                    <div class="sender">[WEB] 用户</div>
+                    <div class="message-content">${cleanedMessage}</div>
+                    <div class="time">${timeString}</div>
+                `;
+            }
+            else if (isUserMessage) {
+                // 当前用户发送的消息
+                messageElement.className += ' web';
+                messageElement.innerHTML = `
+                    <div class="sender">${userNameInput.value}</div>
+                    <div class="message-content">${message}</div>
+                    <div class="time">${timeString}</div>
+                `;
+            }
+            else if (message.includes(':')) {
+                // 普通消息（包含发送者）
+                const parts = message.split(':');
+                const sender = parts[0];
+                const content = parts.slice(1).join(':').trim();
+                
+                messageElement.innerHTML = `
+                    <div class="sender">${sender}</div>
+                    <div class="message-content">${content}</div>
+                    <div class="time">${timeString}</div>
+                `;
+            }
+            else {
+                // 其他消息
+                messageElement.textContent = message;
+            }
+            
+            // 添加到聊天框（历史消息添加到顶部，新消息添加到底部）
+            if (isHistory) {
+                chatMessages.insertBefore(messageElement, chatMessages.firstChild);
+            } else {
+                chatMessages.appendChild(messageElement);
+            }
+            
+            // 显示滚动到底部的按钮
+            scrollToBottomBtn.classList.add('visible');
+        }
+        
+        // ======================
+        // 添加系统消息
+        // ======================
+        function addSystemMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'chat-message system';
+            messageElement.textContent = message;
+            chatMessages.appendChild(messageElement);
+            scrollToBottomBtn.classList.add('visible');
+        }
+        
+        // ======================
+        // 滚动到底部
+        // ======================
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            scrollToBottomBtn.classList.remove('visible');
+        }
+        
+        // ======================
+        // 发送消息
+        // ======================
+        function sendMessage() {
+            const userName = userNameInput.value.trim();
+            const message = messageInput.value.trim();
+            
+            if (userName && message) {
+                if (isConnected) {
+                    // 通过WebSocket发送消息
+                    socket.emit('send_message', {
+                        user_name: userName,
+                        message: message
+                    });
+                    
+                    // 在本地显示用户消息
+                    addMessageToChat(message, true);
+                    
+                    // 清空输入框
+                    messageInput.value = '';
+                    messageInput.focus();
+                    
+                    // 显示滚动到底部的按钮
+                    scrollToBottomBtn.classList.add('visible');
+                } else {
+                    addSystemMessage('尚未连接到服务器，请稍后再试');
+                }
+            }
+        }
+        
+        // ======================
+        // 事件监听器
+        // ======================
+        function initEventListeners() {
+            // 用户名输入
+            userNameInput.addEventListener('input', function() {
+                const valid = this.value.trim() !== '';
+                sendButton.disabled = !valid;
+                
+                // 如果用户名已设置且连接正常，发送加入通知
+                if (valid && !usernameSet && isConnected) {
+                    usernameSet = true;
+                    socket.emit('user_join', this.value.trim());
+                }
+            });
+            
+            // 用户名输入框回车键
+            userNameInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    messageInput.focus();
+                }
+            });
+            
+            // 发送按钮
+            sendButton.addEventListener('click', sendMessage);
+            
+            // 发送图标
+            sendIcon.addEventListener('click', sendMessage);
+            
+            // 消息输入框回车键
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     sendMessage();
                 }
             });
             
-            // 清空聊天
-            clearBtn.addEventListener('click', () => {
-                chatMessages.innerHTML = '';
-            });
-            
-            // 用户名更新
-            usernameInput.addEventListener('change', () => {
-                const newUsername = usernameInput.value.trim();
-                if (newUsername && newUsername !== username) {
-                    // 通知用户变更
-                    const oldUsername = username;
-                    username = newUsername;
-                    
-                    if (isConnected) {
-                        socket.emit('user_join', username);
-                        displayMessage(`${oldUsername} 更名为 ${username}`, 'system');
-                    }
+            // 主题切换
+            themeToggle.addEventListener('click', () => {
+                if (document.body.classList.contains('dark-theme')) {
+                    document.body.classList.remove('dark-theme');
+                    document.body.classList.add('light-theme');
+                    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+                    themeToggle.title = "切换到深色模式";
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.body.classList.remove('light-theme');
+                    document.body.classList.add('dark-theme');
+                    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+                    themeToggle.title = "切换到浅色模式";
+                    localStorage.setItem('theme', 'dark');
                 }
             });
             
-            // 辅助函数：发送消息
-            function sendMessage() {
-                const message = messageInput.value.trim();
-                if (!message) return;
-                
-                // 在本地显示消息
-                displayMessage(`${username}: ${message}`, 'web');
-                
-                // 发送到服务器
-                socket.emit('send_message', {
-                    user_name: username,
-                    message: message
-                });
-                
-                // 清空输入框并聚焦
-                messageInput.value = '';
-                messageInput.focus();
-                
-                // 滚动到底部
-                scrollToBottom();
-            }
+            // 信息按钮
+            infoBtn.addEventListener('click', () => {
+                addSystemMessage('梅林服务器聊天室 v1.0');
+                addSystemMessage('使用 WebSocket 实时通信技术');
+                addSystemMessage('按 Enter 发送消息');
+            });
             
-            // 辅助函数：显示消息
-            function displayMessage(message, type = 'mc') {
-                const messageElement = document.createElement('div');
-                messageElement.className = `message ${type}`;
-                messageElement.textContent = message;
-                messageElement.style.animation = 'fadeIn 0.3s ease';
-                chatMessages.appendChild(messageElement);
-            }
+            // 滚动到底部按钮
+            scrollToBottomBtn.addEventListener('click', scrollToBottom);
             
-            // 辅助函数：分类消息
-            function classifyMessage(message) {
-                if (message.includes('加入了游戏') || message.includes('离开了游戏')) {
-                    return 'system';
-                } else if (message.includes(': ') && message.includes('[WEB]')) {
-                    return 'web';
+            // 监听滚动事件
+            chatMessages.addEventListener('scroll', () => {
+                const scrollThreshold = 50;
+                const isAtBottom = 
+                    chatMessages.scrollHeight - 
+                    chatMessages.scrollTop <= 
+                    chatMessages.clientHeight + scrollThreshold;
+                
+                if (isAtBottom) {
+                    scrollToBottomBtn.classList.remove('visible');
+                } else {
+                    scrollToBottomBtn.classList.add('visible');
                 }
-                return 'mc';
+            });
+        }
+        
+        // ======================
+        // 初始化页面
+        // ======================
+        function initPage() {
+            // 加载主题设置
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.remove('light-theme');
+                document.body.classList.add('dark-theme');
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+                themeToggle.title = "切换到浅色模式";
             }
             
-            // 辅助函数：滚动到底部
-            function scrollToBottom() {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-            // 辅助函数：更新状态
-            function updateStatus(text, statusClass) {
-                statusText.textContent = text;
-                statusIndicator.className = 'status-indicator ' + statusClass;
-            }
+            // 添加欢迎消息
+            addSystemMessage('欢迎来到梅林服务器聊天室!');
+            addSystemMessage('请在上方输入用户名后开始聊天');
             
-            // 初始化自动滚动
-            scrollToBottom();
-        });
+            // 初始化事件监听器
+            initEventListeners();
+            
+            // 初始化WebSocket连接
+            initWebSocket();
+            
+            // 聚焦用户名输入框
+            userNameInput.focus();
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
 </html>
