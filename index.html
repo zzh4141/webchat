@@ -180,6 +180,7 @@
         .status-indicator {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 12px 20px;
             background-color: var(--header-bg);
             border-bottom: 1px solid var(--border-color);
@@ -208,6 +209,58 @@
             0% { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
+        }
+
+        .auto-scroll-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .auto-scroll-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .auto-scroll-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .auto-scroll-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .auto-scroll-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .auto-scroll-slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .auto-scroll-slider:before {
+            transform: translateX(26px);
         }
 
         /* ======================
@@ -478,6 +531,53 @@
         }
 
         /* ======================
+           嵌入模式样式
+        ====================== */
+        .embed-mode {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 450px;
+            z-index: 1000;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+
+        .embed-mode .chat-container {
+            height: 100%;
+            max-width: none;
+            box-shadow: none;
+            border: none;
+            border-radius: 0;
+        }
+
+        .embed-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 999;
+        }
+
+        .embed-toggle i {
+            font-size: 1.5rem;
+        }
+
+        /* ======================
            响应式设计
         ====================== */
         /* 手机设备 */
@@ -551,6 +651,14 @@
             .modal-buttons button {
                 padding: 10px 20px;
             }
+            
+            .embed-mode {
+                width: 100%;
+                height: 70vh;
+                bottom: 0;
+                right: 0;
+                border-radius: 0;
+            }
         }
         
         /* 平板设备 */
@@ -622,6 +730,9 @@
                 <button class="control-btn" id="theme-toggle" title="切换主题">
                     <i class="fas fa-moon"></i>
                 </button>
+                <button class="control-btn" id="embed-toggle" title="切换嵌入模式">
+                    <i class="fas fa-window-restore"></i>
+                </button>
                 <button class="control-btn" id="info-btn" title="关于聊天室">
                     <i class="fas fa-info-circle"></i>
                 </button>
@@ -639,6 +750,13 @@
             <div class="connection-status" id="connection-status">
                 <div class="status-dot"></div>
                 <span>连接中...</span>
+            </div>
+            <div class="auto-scroll-container">
+                <span>自动滚动</span>
+                <label class="auto-scroll-switch">
+                    <input type="checkbox" id="auto-scroll-toggle" checked>
+                    <span class="auto-scroll-slider"></span>
+                </label>
             </div>
         </div>
         
@@ -666,6 +784,14 @@
             </button>
         </div>
     </div>
+    
+    <!-- 嵌入模式容器 -->
+    <div id="embed-container" class="embed-mode"></div>
+    
+    <!-- 嵌入模式切换按钮 -->
+    <div id="embed-toggle-btn" class="embed-toggle">
+        <i class="fas fa-comment-alt"></i>
+    </div>
 
     <script>
         // ======================
@@ -683,12 +809,17 @@
         const modal = document.getElementById('username-modal');
         const modalUsername = document.getElementById('modal-username');
         const confirmUsernameBtn = document.getElementById('confirm-username');
+        const autoScrollToggle = document.getElementById('auto-scroll-toggle');
+        const embedToggle = document.getElementById('embed-toggle');
+        const embedToggleBtn = document.getElementById('embed-toggle-btn');
+        const embedContainer = document.getElementById('embed-container');
         
         // 状态变量
         let socket = null;
         let isConnected = false;
         let usernameSet = false;
         let messageCache = new Set(); // 用于消息去重
+        let autoScrollEnabled = true;
         
         // ======================
         // 初始化WebSocket连接
@@ -735,8 +866,13 @@
                     
                     addMessageToChat(messageData, false);
                     
-                    // 显示滚动到底部的按钮
-                    scrollToBottomBtn.classList.add('visible');
+                    // 如果自动滚动开启，则滚动到底部
+                    if (autoScrollEnabled) {
+                        scrollToBottom();
+                    } else {
+                        // 显示滚动到底部的按钮
+                        scrollToBottomBtn.classList.add('visible');
+                    }
                 }
             });
             
@@ -750,6 +886,9 @@
                         addMessageToChat(message, false, true);
                     }
                 }
+                
+                // 加载历史消息后滚动到底部
+                scrollToBottom();
             });
             
             // 连接状态事件
@@ -886,7 +1025,7 @@
             }
             
             // 如果添加的是新消息，并且用户没有滚动到顶部，则显示滚动到底部的按钮
-            if (!isHistory) {
+            if (!isHistory && !autoScrollEnabled) {
                 scrollToBottomBtn.classList.add('visible');
             }
         }
@@ -949,8 +1088,13 @@
                     messageInput.value = '';
                     messageInput.focus();
                     
-                    // 显示滚动到底部的按钮
-                    scrollToBottomBtn.classList.add('visible');
+                    // 如果自动滚动开启，则滚动到底部
+                    if (autoScrollEnabled) {
+                        scrollToBottom();
+                    } else {
+                        // 显示滚动到底部的按钮
+                        scrollToBottomBtn.classList.add('visible');
+                    }
                 } else {
                     addSystemMessage('尚未连接到服务器，请稍后再试');
                 }
@@ -969,6 +1113,24 @@
                 hash = hash & hash; // 转换为32位整数
             }
             return hash;
+        }
+        
+        // ======================
+        // 切换嵌入模式
+        // ======================
+        function toggleEmbedMode() {
+            if (embedContainer.style.display === 'flex') {
+                // 退出嵌入模式
+                embedContainer.style.display = 'none';
+                document.body.appendChild(document.querySelector('.chat-container'));
+                embedContainer.innerHTML = '';
+            } else {
+                // 进入嵌入模式
+                const chatContainer = document.querySelector('.chat-container');
+                embedContainer.innerHTML = '';
+                embedContainer.appendChild(chatContainer);
+                embedContainer.style.display = 'flex';
+            }
         }
         
         // ======================
@@ -1017,6 +1179,8 @@
                 addSystemMessage('梅林服务器聊天室 v1.0');
                 addSystemMessage('使用 WebSocket 实时通信技术');
                 addSystemMessage('按 Enter 发送消息');
+                addSystemMessage('自动滚动功能已添加');
+                addSystemMessage('支持嵌入模式');
             });
             
             // 滚动到底部按钮
@@ -1036,6 +1200,28 @@
                     scrollToBottomBtn.classList.add('visible');
                 }
             });
+            
+            // 自动滚动切换
+            autoScrollToggle.addEventListener('change', (e) => {
+                autoScrollEnabled = e.target.checked;
+                localStorage.setItem('autoScroll', autoScrollEnabled);
+                
+                // 如果开启自动滚动且不在底部，滚动到底部
+                if (autoScrollEnabled) {
+                    const isAtBottom = 
+                        chatMessages.scrollHeight - 
+                        chatMessages.scrollTop <= 
+                        chatMessages.clientHeight + 50;
+                    
+                    if (!isAtBottom) {
+                        scrollToBottom();
+                    }
+                }
+            });
+            
+            // 嵌入模式切换
+            embedToggle.addEventListener('click', toggleEmbedMode);
+            embedToggleBtn.addEventListener('click', toggleEmbedMode);
         }
         
         // ======================
@@ -1049,6 +1235,13 @@
                 document.body.classList.add('dark-theme');
                 themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
                 themeToggle.title = "切换到浅色模式";
+            }
+            
+            // 加载自动滚动设置
+            const savedAutoScroll = localStorage.getItem('autoScroll');
+            if (savedAutoScroll !== null) {
+                autoScrollEnabled = savedAutoScroll === 'true';
+                autoScrollToggle.checked = autoScrollEnabled;
             }
             
             // 添加欢迎消息
